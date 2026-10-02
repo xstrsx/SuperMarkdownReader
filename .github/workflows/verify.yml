@@ -327,9 +327,19 @@ jobs:
           with pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8') as handle:
               handle.write("\n```\n" + "\n".join(excerpt[-4000:] or ['no captured logs']) + "\n```\n")
 
+          # Always include the package size report and the APK verification facts: they
+          # are the numbers the delivery is judged on.
+          for report in sorted(pathlib.Path('incoming').rglob('size-report.md')):
+              handle = pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8')
+              handle.write("\n## Package size report\n\n" + report.read_text(encoding='utf-8', errors='replace')[:6000])
+              handle.close()
+          for report in sorted(pathlib.Path('incoming').rglob('apk-verification-*.json')):
+              handle = pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8')
+              handle.write(f"\n## {report.name}\n\n```json\n{report.read_text(encoding='utf-8', errors='replace')[:6000]}\n```\n")
+              handle.close()
           for report in sorted(pathlib.Path('incoming').rglob('*.json')):
               head = report.read_text(encoding='utf-8', errors='replace')
-              if '"fail"' in head or '"failures": [' in head:
+              if ('"fail"' in head or '"failures": [' in head) and 'apk-verification' not in report.name:
                   handle = pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8')
                   handle.write(f"\n### {report.name}\n\n```json\n{head[:4000]}\n```\n")
                   handle.close()
