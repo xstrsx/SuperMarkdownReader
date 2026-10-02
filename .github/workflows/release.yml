@@ -206,6 +206,14 @@ jobs:
           VERSION: ${{ needs.guard.outputs.version }}
         run: |
           set -euo pipefail
+          # Values pasted through a browser or a clipboard often carry a trailing
+          # newline. Normalise them once here so a stray CR/LF can never become part
+          # of a password (apksigner reads the exported variables by name).
+          export KEYSTORE_BASE64="$(printf '%s' "${KEYSTORE_BASE64}" | tr -d '\r\n')"
+          export KEYSTORE_PASSWORD="$(printf '%s' "${KEYSTORE_PASSWORD}" | tr -d '\r\n')"
+          export KEY_PASSWORD="$(printf '%s' "${KEY_PASSWORD}" | tr -d '\r\n')"
+          export KEY_ALIAS="$(printf '%s' "${KEY_ALIAS}" | tr -d '\r\n ')"
+          export EXPECTED_SIGNER_SHA256="$(printf '%s' "${EXPECTED_SIGNER_SHA256}" | tr -d '\r\n')"
           build_tools="$(ls -d "${ANDROID_HOME}/build-tools"/* | sort -V | tail -1)"
           echo "using build-tools: ${build_tools}"
           unsigned="incoming/app-release-unsigned.apk"
