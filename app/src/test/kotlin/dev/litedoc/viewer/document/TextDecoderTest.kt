@@ -9,7 +9,7 @@ class TextDecoderTest {
 
     @Test
     fun `utf8 decodes and keeps newlines`() {
-        val text = "普通文本 $dollar\r\nsecond\nthird"
+        val text = "普通文本 \$dollar\r\nsecond\nthird"
         val result = TextDecoder.decode(text.toByteArray(Charsets.UTF_8)) as TextDecoder.Result.Decoded
         assertEquals(text, result.text)
         assertEquals(TextDecoder.UTF8, result.charsetName)

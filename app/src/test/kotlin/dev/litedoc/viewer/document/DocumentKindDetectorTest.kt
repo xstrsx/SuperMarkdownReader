@@ -32,7 +32,8 @@ class DocumentKindDetectorTest {
 
     @Test
     fun `smiles needs more than one chemistry line`() {
-        assertEquals(DocumentKind.SMILES, detect("records", null, "CCO ethanol\nc1ccccc1 benzene\n").kind)
+        val records = "CC(=O)Oc1ccccc1C(=O)O 阿司匹林\nCN1C=NC2=C1C(=O)N(C(=O)N2C)C 咖啡因\n"
+        assertEquals(DocumentKind.SMILES, detect("records", null, records).kind)
         assertEquals(DocumentKind.PLAIN_TEXT, detect("note", null, "价格是 $5。\n这是一句话。\n").kind)
     }
 
