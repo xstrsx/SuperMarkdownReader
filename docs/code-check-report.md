@@ -59,11 +59,35 @@
 - 包体：无 source map、无 node_modules、无 fixture 入包（由 `verify-apk.py` 静态强制）。
 - 编码：BOM 优先 → 严格 UTF-8 → 候选评分/手动选择；不乱码静默；原始字节保留以便重解码。
 
+## Actions 构建结果（云端）
+
+| Workflow | 触发 | 结果 |
+| --- | --- | --- |
+| `verify.yml` | `push` main（commit `956e7aa`） | **全部成功**：source checks / offline web build / unsigned release build |
+| `release.yml` | tag `v0.1.0`（commit `fcaf694`） | guard 成功、build 成功、**sign 失败（未配置签名材料，符合设计）**、verify-signed 跳过 |
+
+未签名 Release 构建的实测数据（同一 commit 的 `web-dist` 产物）：
+
+- APK：**5.89 MiB**（6,173,174 字节），目标 15 MiB，预算 20 MiB → 在目标内。
+- 压缩内容合计 5.84 MiB；解压后 18.38 MiB；条目 270。
+- 分项：`mathjax-font-glyphs` 2.975 MiB、`mermaid` 1.532 MiB、`mathjax-engine` 0.670 MiB、
+  `dex` 0.291 MiB、`web-application` 0.281 MiB、其余 ≈0.09 MiB。
+- 静态校验：`applicationId=dev.litedoc.viewer`、`minSdk=26`、`targetSdk=36`、
+  `versionCode=1`、`versionName=0.1.0`、无 launcher activity、无 BROWSABLE、
+  仅 `INTERNET`（另有应用自身命名空间的签名级权限供自身非导出接收器使用）、
+  vendor manifest 236/236 文件存在且字节数一致、无 source map / node_modules / fixture 入包。
+- Kotlin 单元测试：26 项全部通过（`testDebugUnitTest`）。
+- lint：0 error（45 warning）。
+
+工作流日志摘要（用于失败排查，无秘密）：
+- `ci-report` 分支：verify run 的作业结论与日志摘录。
+- `ci-report-release` 分支：release run 的作业结论、包体报告与校验事实。
+
 ## 尚未验证（必须由云端或用户完成）
 
 | 项目 | 原因 |
 | --- | --- |
 | Kotlin/Android 编译、lint、单元测试、R8、资源打包 | 需要 Android SDK，仅在 Actions 执行 |
 | 真实 APK 的包体数值、包结构静态校验 | 需要构建产物 |
-| 正式签名与证书指纹核验 | 需要用户配置正式密钥 |
+| 正式签名与证书指纹核验 | 需要用户配置正式密钥（`release-signing` 环境）；当前 sign job 按设计明确失败，未产出签名产物 |
 | 首次断网渲染、系统入口、各格式实际渲染、图片策略、授权、导出、性能、覆盖升级 | **由用户手动下载安装后验证**，Agent 不负责运行验收 |
