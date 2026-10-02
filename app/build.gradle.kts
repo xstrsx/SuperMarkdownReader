@@ -150,12 +150,18 @@ android {
         checkReleaseBuilds = true
         warningsAsErrors = false
         explainIssues = true
-        // Versions are pinned deliberately and refreshed by a separate commit.
+        // Disabled checks, each for a stated reason (never to hide an app defect):
+        //  * version-availability checks: versions are pinned deliberately and upgraded
+        //    by a separate commit;
+        //  * InvalidPackage: the bundled JVM libraries (OkHttp/Okio) reference optional
+        //    javax/org.conscrypt classes that are not part of android.jar; the dependency
+        //    set is verified in docs/support-matrix.md and the classes are never loaded.
         disable += setOf(
             "GradleDependency",
             "AndroidGradlePluginVersion",
             "OldTargetApi",
             "NewerVersionAvailable",
+            "InvalidPackage",
         )
         htmlReport = true
         xmlReport = true

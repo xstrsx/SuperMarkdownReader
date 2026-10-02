@@ -27,7 +27,7 @@ import org.json.JSONObject
  * * document text never travels over the bridge: it is streamed from the local
  *   resource route, so no huge `evaluateJavascript` strings are built.
  */
-class ViewerMessageBridge(private val host: Host) {
+class ViewerMessageBridge(private val host: Host) : WebViewCompat.WebMessageListener {
 
     interface Host {
         fun currentSessionId(): String?

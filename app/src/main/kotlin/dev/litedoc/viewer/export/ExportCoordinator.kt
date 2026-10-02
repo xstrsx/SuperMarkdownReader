@@ -171,7 +171,7 @@ class ExportCoordinator(
         val current = stream ?: return false
         if (current.id != exportId) return false
         val written = current.written
-        return try {
+        try {
             current.output.flush()
             current.output.close()
         } catch (e: Exception) {
