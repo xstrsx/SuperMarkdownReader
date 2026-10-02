@@ -374,3 +374,71 @@ jobs:
             --title "LiteDoc ${tag}" \
             --notes-file "${notes}" \
             bundle/*.apk bundle/SHA256SUMS
+
+  diagnostics:
+    name: publish run diagnostics
+    if: always()
+    runs-on: ubuntu-24.04
+    needs: [guard, build, sign, verify-signed]
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Record job conclusions
+        run: |
+          mkdir -p reports
+          {
+            echo "# LiteDoc release run diagnostics"
+            echo
+            echo "- run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- ref: ${GITHUB_REF}"
+            echo "- commit: ${GITHUB_SHA}"
+            echo "- generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            echo "## Job results"
+            echo "- guard: ${{ needs.guard.result }}"
+            echo "- build: ${{ needs.build.result }}"
+            echo "- sign: ${{ needs.sign.result }}"
+            echo "- verify-signed: ${{ needs.verify-signed.result }}"
+            echo
+          } > reports/diagnostics.md
+
+      - name: Download every report artifact of this run
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: incoming
+          merge-multiple: true
+
+      - name: Append size report and verification facts
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib
+
+          for name in ('size-report.md',):
+              for report in sorted(pathlib.Path('incoming').rglob(name)):
+                  with pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8') as handle:
+                      handle.write("\n## " + report.name + "\n\n" + report.read_text(encoding='utf-8', errors='replace')[:6000])
+          for report in sorted(pathlib.Path('incoming').rglob('apk-verification-*.json')):
+              with pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8') as handle:
+                  handle.write(f"\n## {report.name}\n\n```json\n{report.read_text(encoding='utf-8', errors='replace')[:6000]}\n```\n")
+          for report in sorted(pathlib.Path('incoming').rglob('build-info*.json')):
+              with pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8') as handle:
+                  handle.write(f"\n## {report.name}\n\n```json\n{report.read_text(encoding='utf-8', errors='replace')[:4000]}\n```\n")
+          PY
+
+      - name: Publish to the ci-report-release branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          cp reports/diagnostics.md publish/report.md
+          cd publish
+          git init -q
+          git config user.name "litedoc-ci"
+          git config user.email "litedoc-ci@users.noreply.github.com"
+          git add report.md
+          git commit -qm "ci: release diagnostics for run ${GITHUB_RUN_ID}"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:ci-report-release

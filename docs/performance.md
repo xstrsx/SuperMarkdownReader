@@ -1,11 +1,17 @@
 # 包体与性能
 
-## 现状
+## 现状（无签名 Release 构建实测）
 
-- 目标：正式 APK 争取约 15 MiB，预算 20 MiB（MiB = 1,048,576 字节）。
-- 实际数值：**以 Actions 包体报告为准**（`reports/size-report.md` / `size-report.json`，
-  作为 artifact 与 workflow summary 提供）。本文件不预填未经测量的数字。
-- 运行性能（冷/热启动、首次可读时间、大文件滚动、内存）：**待用户手动下载后验证**。
+`verify.yml` 的 `android-build` 实测（commit `956e7aa`，未签名 Release 变体）：
+
+- APK 文件：**5.89 MiB**（6,173,174 字节），**在 15 MiB 目标之内**。
+- APK 内压缩内容合计 5.84 MiB；解压后 18.38 MiB；条目 270 个。
+- 分项（压缩后）：`mathjax-font-glyphs` 2.975 MiB（51%，动态字形数据）、
+  `mermaid` 1.532 MiB（26.2%，完整 ESM 分片）、`mathjax-engine` 0.670 MiB、
+  `dex` 0.291 MiB、`web-application` 0.281 MiB、其余（资源/清单/签名）≈0.09 MiB。
+- 正式签名产物的数值与 SHA-256 由 `release.yml` 的包体报告给出（随 artifact 提供）。
+
+运行性能（冷/热启动、首次可读时间、大文件滚动、内存）：**待用户手动下载后验证**。
 
 ## 包体构成（分类由 `scripts/size-report.py` 实测统计）
 
