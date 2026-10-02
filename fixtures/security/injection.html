@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>受限静态 HTML 样例</title>
+  <meta http-equiv="refresh" content="0;url=https://example.invalid/refresh">
+  <base href="https://example.invalid/">
+  <link rel="stylesheet" href="https://example.invalid/remote.css">
+  <style>
+    @import url("https://example.invalid/import.css");
+    @font-face { font-family: X; src: url("https://example.invalid/font.woff2"); }
+    .overlay { position: fixed; inset: 0; z-index: 9999; }
+    .ok { color: #1b1b1f; margin: 6px; }
+  </style>
+</head>
+<body onload="alert('onload')">
+  <h1>本地 HTML 净化样例</h1>
+  <p class="ok" style="color:#2f7d52">受控的内联样式与段落应保留。</p>
+  <p class="overlay">覆盖层类应被移除（定位/层叠能力不受信任）。</p>
+  <script>window.litedoc && window.litedoc.postMessage('{"v":1,"method":"ready"}')</script>
+  <iframe src="https://example.invalid/frame" onload="alert(1)"></iframe>
+  <form action="https://example.invalid/post"><input type="text" name="q"><button>提交</button></form>
+  <img src="https://example.invalid/track.png" onerror="alert(2)">
+  <img src="./local-image.png" alt="本地图片需要授权目录">
+  <a href="https://example.invalid/link">外部链接应变为复制</a>
+  <a href="#section">页内锚点应可用</a>
+  <h2 id="section">页内锚点目标</h2>
+  <table><tr><th>列</th></tr><tr><td>值</td></tr></table>
+  <noscript><p>noscript 内容</p></noscript>
+</body>
+</html>

@@ -1,0 +1,90 @@
+/* Print stylesheet.
+   Goals: never clip horizontally, let long code wrap, scale wide graphics to the
+   printable width, and give a deterministic page box for the system print flow. */
+
+@page {
+  margin: 12mm;
+}
+
+html,
+body {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.ld-content {
+  padding: 0 !important;
+  max-width: none !important;
+}
+
+.ld-status,
+.ld-toc,
+.ld-block-tools,
+.ld-csv-toolbar {
+  display: none !important;
+}
+
+.ld-content pre,
+.ld-content code {
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word !important;
+  background: #f4f4f4 !important;
+}
+
+.ld-content pre,
+.ld-content table,
+.ld-block {
+  overflow: visible !important;
+  max-width: 100% !important;
+}
+
+.ld-content table {
+  display: table !important;
+  width: 100% !important;
+  table-layout: fixed;
+}
+
+.ld-content table td,
+.ld-content table th {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.ld-csv-viewport {
+  height: auto !important;
+  overflow: visible !important;
+  contain: none !important;
+}
+
+.ld-canvas,
+.ld-canvas svg,
+.ld-block-body svg {
+  max-width: 100% !important;
+  height: auto !important;
+  page-break-inside: avoid;
+}
+
+.ld-block,
+.ld-alert,
+.ld-frontmatter,
+.ld-math-display,
+figure {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.ld-content h1,
+.ld-content h2,
+.ld-content h3 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.ld-content a {
+  color: #000000 !important;
+  text-decoration: underline;
+}
+
+.ld-content details:not([open]) > *:not(summary) {
+  display: block !important;
+}

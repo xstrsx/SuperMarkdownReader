@@ -1,0 +1,43 @@
+# Mermaid 逐类型样例
+
+每个文件对应锁定版本注册表中的一个类型。
+
+- `fixtures/mermaid/error.mmd`
+- `fixtures/mermaid/front-matter-dashes.mmd`（应报错） - Front-matter guard: this input must produce a clear parse error, never a silent blank diagram.
+- `fixtures/mermaid/flowchart-elk.mmd`
+- `fixtures/mermaid/mindmap.mmd`
+- `fixtures/mermaid/architecture.mmd`
+- `fixtures/mermaid/agentflow.mmd`
+- `fixtures/mermaid/c4.mmd`
+- `fixtures/mermaid/kanban.mmd`
+- `fixtures/mermaid/classDiagram.mmd`
+- `fixtures/mermaid/er.mmd`
+- `fixtures/mermaid/gantt.mmd`
+- `fixtures/mermaid/info.mmd`
+- `fixtures/mermaid/pie.mmd`
+- `fixtures/mermaid/requirement.mmd`
+- `fixtures/mermaid/sequence.mmd`
+- `fixtures/mermaid/swimlane.mmd`
+- `fixtures/mermaid/flowchart-v2.mmd`
+- `fixtures/mermaid/timeline.mmd`
+- `fixtures/mermaid/gitGraph.mmd`
+- `fixtures/mermaid/stateDiagram.mmd`
+- `fixtures/mermaid/journey.mmd`
+- `fixtures/mermaid/quadrantChart.mmd`
+- `fixtures/mermaid/sankey.mmd`
+- `fixtures/mermaid/packet.mmd`
+- `fixtures/mermaid/xychart.mmd`
+- `fixtures/mermaid/block.mmd`
+- `fixtures/mermaid/eventmodeling.mmd`
+- `fixtures/mermaid/treeView.mmd`
+- `fixtures/mermaid/radar.mmd`
+- `fixtures/mermaid/ishikawa.mmd`
+- `fixtures/mermaid/treemap.mmd`
+- `fixtures/mermaid/railroad.mmd`
+- `fixtures/mermaid/railroadEbnf.mmd`
+- `fixtures/mermaid/railroadAbnf.mmd`
+- `fixtures/mermaid/railroadPeg.mmd`
+- `fixtures/mermaid/venn.mmd`
+- `fixtures/mermaid/wardley.mmd`
+- `fixtures/mermaid/cynefin.mmd`
+- `fixtures/mermaid/usecase.mmd`

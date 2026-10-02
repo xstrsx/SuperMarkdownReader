@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="litedoc_window_background">#FFFBFBFF</color>
+    <color name="litedoc_toolbar_background">#FFF2F3F7</color>
+    <color name="litedoc_toolbar_foreground">#FF1B1B1F</color>
+    <color name="litedoc_accent">#FF3B6EA5</color>
+</resources>

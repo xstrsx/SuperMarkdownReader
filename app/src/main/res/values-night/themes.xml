@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Follow system" is the default; an explicit light/dark choice re-applies
+     Theme.LiteDoc.Dark at runtime before the content view is created. -->
+<resources>
+    <style name="Theme.LiteDoc" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/litedoc_window_background</item>
+        <item name="android:colorAccent">@color/litedoc_accent</item>
+        <item name="android:statusBarColor">@color/litedoc_toolbar_background</item>
+        <item name="android:navigationBarColor">@color/litedoc_window_background</item>
+    </style>
+</resources>

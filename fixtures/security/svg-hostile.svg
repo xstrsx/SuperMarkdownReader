@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+  <!ENTITY ping "http://example.invalid/entity">
+]>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200" viewBox="0 0 200 200" onload="alert('onload')">
+  <script type="text/javascript">alert('script');</script>
+  <rect x="0" y="0" width="100" height="100" fill="#3b6ea5" onclick="alert('click')"/>
+  <circle cx="150" cy="150" r="20" fill="#b3352c" onmouseover="alert('hover')"/>
+  <text x="10" y="190" font-size="10">&xxe;</text>
+  <image xlink:href="http://example.invalid/remote.png" x="0" y="120" width="40" height="40"/>
+  <use xlink:href="https://example.invalid/external.svg#shape" x="120" y="0"/>
+  <a xlink:href="javascript:alert('link')"><rect x="0" y="100" width="40" height="20"/></a>
+  <foreignObject x="60" y="60" width="120" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="position:fixed;inset:0;" onclick="alert('fo')">
+      外部对象内容
+      <script>alert('fo-script')</script>
+    </div>
+  </foreignObject>
+  <style>
+    @import url("http://example.invalid/import.css");
+    rect { fill: url("http://example.invalid/bg.svg#g"); }
+  </style>
+  <animate attributeName="x" from="0" to="10" dur="1s" repeatCount="indefinite"/>
+</svg>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      The CSP mirrors the policy that the native router also enforces. There is no
+      remote origin in any directive: no CDN, no remote font, no remote script and
+      no network connection of any kind. `blob:` is allowed for locally generated
+      object URLs (SVG previews and exports) and `data:` only for images.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; base-uri 'none'; form-action 'none'; manifest-src 'none'"
+    />
+    <title>LiteDoc</title>
+    <link rel="stylesheet" href="assets/content.css" />
+    <link rel="stylesheet" href="assets/print.css" media="print" />
+  </head>
+  <body>
+    <div id="ld-root" class="ld-root" tabindex="-1">
+      <div id="ld-content" class="ld-content" aria-live="off"></div>
+    </div>
+    <div id="ld-status" class="ld-status" role="status" aria-live="polite">准备中…</div>
+    <div id="ld-toc" class="ld-toc" hidden aria-label="目录"></div>
+    <div id="ld-error" class="ld-error" hidden role="alert"></div>
+    <script type="module" src="assets/main.js"></script>
+  </body>
+</html>

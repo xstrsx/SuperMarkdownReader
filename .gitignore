@@ -1,2 +1,29 @@
+# Existing repository conventions
 AGENTS.md
 PROJECT_PLAN.zh-CN.md
+
+# Node / web build output
+web/node_modules/
+web/dist/
+npm-debug.log*
+
+# Gradle / Android
+.gradle/
+build/
+app/build/
+local.properties
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+reports/
+!docs/code-check-report.md
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db

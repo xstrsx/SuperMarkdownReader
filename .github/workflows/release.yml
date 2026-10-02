@@ -1,0 +1,376 @@
+# Release pipeline: verified build -> restricted signing job -> static verification
+# of the signed artifact -> draft release.
+#
+# Hard rules implemented here:
+#   * the signing job runs no repository build script: it only takes the already
+#     verified APK and uses the platform `zipalign`/`apksigner` tools;
+#   * the keystore is decoded into RUNNER_TEMP, never into the workspace, and is
+#     never cached or uploaded;
+#   * a missing secret or a missing expected certificate fingerprint fails the job
+#     loudly. There is no debug/temporary/unsigned fallback;
+#   * the signed artifact is byte-identical to the artifact that was verified,
+#     which is checked by SHA-256 before and after signing;
+#   * a GitHub Release is only ever created as a *draft*, and only when explicitly
+#     requested through workflow_dispatch.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish_draft:
+        description: 'Create a draft GitHub Release for this run'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APPLICATION_ID: dev.litedoc.viewer
+  JAVA_VERSION: '17'
+
+jobs:
+  guard:
+    name: validate the request
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Refuse untrusted refs
+        run: |
+          set -euo pipefail
+          echo "event=${GITHUB_EVENT_NAME} ref=${GITHUB_REF}"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_EVENT_NAME}" = "pull_request_target" ]; then
+            echo "signing is never available to pull requests" >&2
+            exit 1
+          fi
+          case "${GITHUB_REF}" in
+            refs/tags/v*|refs/heads/main) ;;
+            *) echo "release builds are limited to v* tags or the default branch" >&2; exit 1 ;;
+          esac
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "the commit being released is not part of the reviewed main history" >&2
+            exit 1
+          fi
+
+      - name: Derive the version
+        id: version
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(grep -m1 -o 'versionName = "[^"]*"' app/build.gradle.kts | sed 's/.*"\(.*\)"/\1/')"
+          fi
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}"
+
+  build:
+    name: verified build
+    needs: [guard]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Install locked dependencies
+        run: npm ci --prefix web
+
+      - name: Source checks
+        run: |
+          npm run typecheck --prefix web
+          npm run test:markdown --prefix web
+          npm run test:sanitizers --prefix web
+          npm run verify:mermaid --prefix web
+
+      - name: Build the offline runtime
+        run: |
+          npm run build --prefix web
+          npm run verify:closure --prefix web
+          node scripts/collect-licences.mjs
+
+      - name: Kotlin unit tests, lint and unsigned release build
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace \
+            -Plitedoc.versionCode="${GITHUB_RUN_NUMBER}" \
+            -Plitedoc.versionName="${{ needs.guard.outputs.version }}" \
+            :app:testDebugUnitTest lintRelease assembleRelease
+
+      - name: Size report and static verification of the unsigned APK
+        run: |
+          python3 scripts/size-report.py \
+            --apk app/build/outputs/apk/release/app-release-unsigned.apk \
+            --out reports/size-report.md --json reports/size-report.json
+          python3 scripts/verify-apk.py \
+            --apk app/build/outputs/apk/release/app-release-unsigned.apk \
+            --mode unsigned \
+            --expect-application-id "${APPLICATION_ID}" \
+            --expect-min-sdk 26 --expect-target-sdk 36 \
+            --expect-version-name "${{ needs.guard.outputs.version }}" \
+            --out reports/apk-verification-unsigned.json
+
+      - name: Upload the unsigned APK for the signing job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: unsigned-release-for-signing
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-build-reports
+          path: |
+            reports/
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+  sign:
+    name: sign with the stable release certificate
+    needs: [guard, build]
+    runs-on: ubuntu-24.04
+    environment: release-signing
+    # This job deliberately runs no repository build script and no Gradle/npm.
+    steps:
+      - name: Require the signing material
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_SIGNER_SHA256: ${{ vars.EXPECTED_SIGNER_SHA256 }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${KEYSTORE_BASE64}" ] || missing="${missing} ANDROID_KEYSTORE_BASE64"
+          [ -n "${KEYSTORE_PASSWORD}" ] || missing="${missing} ANDROID_KEYSTORE_PASSWORD"
+          [ -n "${KEY_ALIAS}" ] || missing="${missing} ANDROID_KEY_ALIAS"
+          [ -n "${KEY_PASSWORD}" ] || missing="${missing} ANDROID_KEY_PASSWORD"
+          [ -n "${EXPECTED_SIGNER_SHA256}" ] || missing="${missing} EXPECTED_SIGNER_SHA256(variable)"
+          if [ -n "${missing}" ]; then
+            echo "::error::Missing release signing material:${missing}"
+            echo "Configure the protected environment 'release-signing' as described in docs/signing.md."
+            echo "LiteDoc never falls back to a debug keystore, a freshly generated key or an unsigned artifact."
+            exit 1
+          fi
+          echo "signing material present"
+
+      - name: Download the verified unsigned APK
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: unsigned-release-for-signing
+          path: incoming
+
+      - name: Zipalign, sign and verify
+        id: sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_SIGNER_SHA256: ${{ vars.EXPECTED_SIGNER_SHA256 }}
+          VERSION: ${{ needs.guard.outputs.version }}
+        run: |
+          set -euo pipefail
+          build_tools="$(ls -d "${ANDROID_HOME}/build-tools"/* | sort -V | tail -1)"
+          echo "using build-tools: ${build_tools}"
+          unsigned="incoming/app-release-unsigned.apk"
+          mkdir -p out
+          signed="out/LiteDoc-${VERSION}-release.apk"
+          cp "${unsigned}" work-unsigned.apk
+          before="$(sha256sum "${unsigned}" | cut -d' ' -f1)"
+          echo "unsigned-sha256=${before}" >> "$GITHUB_OUTPUT"
+
+          # Keystore only ever exists in RUNNER_TEMP and is removed in this step.
+          keystore="${RUNNER_TEMP}/litedoc-release.p12"
+          printf '%s' "${KEYSTORE_BASE64}" | base64 -d > "${keystore}"
+          trap 'shred -u "${keystore}" 2>/dev/null || rm -f "${keystore}"' EXIT
+
+          "${build_tools}/zipalign" -f -p 4 work-unsigned.apk aligned.apk
+          # Passwords are supplied through environment variables, never on the
+          # command line, and the shell does not echo them.
+          set +x
+          "${build_tools}/apksigner" sign \
+            --ks "${keystore}" \
+            --ks-type PKCS12 \
+            --ks-key-alias "${KEY_ALIAS}" \
+            --ks-pass "env:KEYSTORE_PASSWORD" \
+            --key-pass "env:KEY_PASSWORD" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out "${signed}" \
+            aligned.apk
+          set -x
+
+          "${build_tools}/apksigner" verify --verbose --print-certs "${signed}" | tee verify.txt
+          actual="$(grep -m1 'certificate SHA-256 digest' verify.txt | sed 's/.*: *//' | tr -d ':' | tr 'A-F' 'a-f')"
+          expected="$(printf '%s' "${EXPECTED_SIGNER_SHA256}" | tr -d ':' | tr 'A-F' 'a-f')"
+          if [ -z "${actual}" ]; then
+            echo "::error::could not read the signer certificate digest"
+            exit 1
+          fi
+          if [ "${actual}" != "${expected}" ]; then
+            echo "::error::signer certificate mismatch: ${actual} != ${expected}"
+            exit 1
+          fi
+          echo "signer-sha256=${actual}" >> "$GITHUB_OUTPUT"
+          sha256sum "${signed}" | tee SHA256SUMS
+          echo "signed-sha256=$(sha256sum "${signed}" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          rm -f work-unsigned.apk aligned.apk verify.txt
+          ls -la out
+
+      - name: Upload the signed release APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: LiteDoc-release-signed
+          path: |
+            out/*.apk
+            SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
+
+  verify-signed:
+    name: verify the signed artifact
+    needs: [guard, build, sign]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Download the signed artifact and the build reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: '{LiteDoc-release-signed,release-build-reports}'
+          path: incoming
+          merge-multiple: true
+
+      - name: Static verification of the signed APK
+        env:
+          EXPECTED_SIGNER_SHA256: ${{ vars.EXPECTED_SIGNER_SHA256 }}
+        run: |
+          set -euo pipefail
+          apk="$(ls incoming/*.apk | head -1)"
+          python3 scripts/verify-apk.py \
+            --apk "${apk}" \
+            --mode signed \
+            --expect-application-id "${APPLICATION_ID}" \
+            --expect-min-sdk 26 --expect-target-sdk 36 \
+            --expected-signer-sha256 "${EXPECTED_SIGNER_SHA256}" \
+            --out reports/apk-verification-signed.json
+          (cd "$(dirname "${apk}")" && sha256sum "$(basename "${apk}")" > SHA256SUMS)
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          apk = next(pathlib.Path('incoming').glob('*.apk'))
+          info = {
+              'commit': os.environ.get('GITHUB_SHA'),
+              'workflowRun': f"{os.environ.get('GITHUB_SERVER_URL')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}",
+              'artifactKind': 'release-signed',
+              'applicationId': 'dev.litedoc.viewer',
+              'versionName': '${{ needs.guard.outputs.version }}',
+              'apkBytes': apk.stat().st_size,
+              'apkSha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
+              'signerSha256': os.environ.get('EXPECTED_SIGNER_SHA256', '').replace(':', '').lower(),
+              'lockHashes': {
+                  'web/package-lock.json': hashlib.sha256(pathlib.Path('web/package-lock.json').read_bytes()).hexdigest(),
+                  'gradle/wrapper/gradle-wrapper.properties': hashlib.sha256(pathlib.Path('gradle/wrapper/gradle-wrapper.properties').read_bytes()).hexdigest(),
+              },
+              'runtimeVerification': '待用户手动下载验证',
+          }
+          pathlib.Path('reports/build-info.json').write_text(json.dumps(info, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          PY
+
+      - name: Upload the verified release bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: LiteDoc-release-bundle
+          path: |
+            incoming/*.apk
+            incoming/SHA256SUMS
+            reports/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Release summary
+        run: |
+          {
+            echo "## LiteDoc ${{ needs.guard.outputs.version }}"
+            echo
+            echo "Signed with the stable release certificate; the signature was verified against"
+            echo "EXPECTED_SIGNER_SHA256 before this artifact was published."
+            echo
+            echo "Download: the artifact **LiteDoc-release-bundle** of this run."
+            echo "Installation and functional verification are performed by the user after downloading."
+            echo
+            if [ -f reports/size-report.md ]; then cat reports/size-report.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-draft:
+    name: draft release
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_draft
+    needs: [guard, verify-signed]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download the verified bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: LiteDoc-release-bundle
+          path: bundle
+
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="v${{ needs.guard.outputs.version }}"
+          notes="bundle/reports/size-report.md"
+          gh release create "${tag}" \
+            --draft \
+            --title "LiteDoc ${tag}" \
+            --notes-file "${notes}" \
+            bundle/*.apk bundle/SHA256SUMS

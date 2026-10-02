@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  LiteDoc ships exactly one network client: image/RemoteImageRepository (OkHttp).
+  Its own policy enforces http/https only, per-hop redirect validation, private
+  address rejection and size limits.
+
+  The WebView never loads a remote resource: every request that is not served by
+  the local session router is rejected before it can reach the network, and
+  blockNetworkLoads is enabled on top of that.
+
+  Cleartext is therefore permitted at platform level so that a document's
+  http:// image reference can be fetched by that one client; it does not open a
+  browsing path, because no component of the app can navigate to a URL and no
+  remote HTML is ever rendered.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

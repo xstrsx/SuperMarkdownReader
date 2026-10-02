@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Follow-the-system theme: values-night overrides the parent. -->
+    <style name="Theme.LiteDoc" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/litedoc_window_background</item>
+        <item name="android:colorAccent">@color/litedoc_accent</item>
+        <item name="android:statusBarColor">@color/litedoc_toolbar_background</item>
+        <item name="android:navigationBarColor">@color/litedoc_window_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+    </style>
+
+    <style name="Theme.LiteDoc.Dark" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/litedoc_window_background</item>
+        <item name="android:colorAccent">@color/litedoc_accent</item>
+        <item name="android:statusBarColor">@color/litedoc_toolbar_background</item>
+        <item name="android:navigationBarColor">@color/litedoc_window_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <style name="LiteDoc.Toolbar" parent="@android:style/Widget.Material.Toolbar">
+        <item name="android:background">@color/litedoc_toolbar_background</item>
+    </style>
+
+    <style name="LiteDoc.Toolbar.Title" parent="@android:style/TextAppearance.Material.Title">
+        <item name="android:textColor">@color/litedoc_toolbar_foreground</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">middle</item>
+    </style>
+
+    <!-- Applied with a ContextThemeWrapper when the toolbar is inflated, so the
+         overflow menu follows the user's theme choice rather than only uiMode. -->
+    <style name="Theme.LiteDoc.Toolbar" parent="@android:style/Theme.Material.Light">
+        <item name="android:textColorPrimary">@color/litedoc_toolbar_foreground</item>
+        <item name="android:textColorSecondary">@color/litedoc_toolbar_foreground</item>
+        <item name="android:colorControlNormal">@color/litedoc_toolbar_foreground</item>
+        <item name="android:colorBackground">@color/litedoc_toolbar_background</item>
+    </style>
+
+    <style name="Theme.LiteDoc.Toolbar.Dark" parent="@android:style/Theme.Material">
+        <item name="android:textColorPrimary">@color/litedoc_toolbar_foreground</item>
+        <item name="android:textColorSecondary">@color/litedoc_toolbar_foreground</item>
+        <item name="android:colorControlNormal">@color/litedoc_toolbar_foreground</item>
+        <item name="android:colorBackground">@color/litedoc_toolbar_background</item>
+    </style>
+</resources>

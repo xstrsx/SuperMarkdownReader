@@ -1,0 +1,374 @@
+{
+  "generatedBy": "scripts/generate-fixtures.mjs",
+  "engine": "mermaid",
+  "engineVersionTag": "mermaid@12.0.0",
+  "registrySource": "mermaid.getRegisteredDiagramsMetadata() from the shipped dist/mermaid.esm.min.mjs",
+  "docSource": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax",
+  "registeredTypes": [
+    "error",
+    "---",
+    "flowchart-elk",
+    "mindmap",
+    "architecture",
+    "agentflow",
+    "c4",
+    "kanban",
+    "classDiagram",
+    "er",
+    "gantt",
+    "info",
+    "pie",
+    "requirement",
+    "sequence",
+    "swimlane",
+    "flowchart-v2",
+    "timeline",
+    "gitGraph",
+    "stateDiagram",
+    "journey",
+    "quadrantChart",
+    "sankey",
+    "packet",
+    "xychart",
+    "block",
+    "eventmodeling",
+    "treeView",
+    "radar",
+    "ishikawa",
+    "treemap",
+    "railroad",
+    "railroadEbnf",
+    "railroadAbnf",
+    "railroadPeg",
+    "venn",
+    "wardley",
+    "cynefin",
+    "usecase"
+  ],
+  "fixtureCoverage": [
+    {
+      "id": "error",
+      "fixture": "fixtures/mermaid/error.mmd",
+      "layouts": [],
+      "source": "synthetic: shipped detector",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "---",
+      "fixture": "fixtures/mermaid/front-matter-dashes.mmd",
+      "layouts": [],
+      "source": "synthetic: shipped detector",
+      "negative": true,
+      "note": "Front-matter guard: this input must produce a clear parse error, never a silent blank diagram."
+    },
+    {
+      "id": "flowchart-elk",
+      "fixture": "fixtures/mermaid/flowchart-elk.mmd",
+      "layouts": [
+        "elk"
+      ],
+      "source": "synthetic: shipped detector",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "mindmap",
+      "fixture": "fixtures/mermaid/mindmap.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/mindmap.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "architecture",
+      "fixture": "fixtures/mermaid/architecture.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/architecture.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "agentflow",
+      "fixture": "fixtures/mermaid/agentflow.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/agentflow.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "c4",
+      "fixture": "fixtures/mermaid/c4.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/c4.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "kanban",
+      "fixture": "fixtures/mermaid/kanban.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/kanban.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "classDiagram",
+      "fixture": "fixtures/mermaid/classDiagram.mmd",
+      "layouts": [
+        "dagre"
+      ],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/classDiagram.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "er",
+      "fixture": "fixtures/mermaid/er.mmd",
+      "layouts": [
+        "dagre"
+      ],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/entityRelationshipDiagram.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "gantt",
+      "fixture": "fixtures/mermaid/gantt.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/gantt.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "info",
+      "fixture": "fixtures/mermaid/info.mmd",
+      "layouts": [],
+      "source": "synthetic: shipped detector",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "pie",
+      "fixture": "fixtures/mermaid/pie.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/pie.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "requirement",
+      "fixture": "fixtures/mermaid/requirement.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/requirementDiagram.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "sequence",
+      "fixture": "fixtures/mermaid/sequence.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/sequenceDiagram.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "swimlane",
+      "fixture": "fixtures/mermaid/swimlane.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/swimlanes.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "flowchart-v2",
+      "fixture": "fixtures/mermaid/flowchart-v2.mmd",
+      "layouts": [
+        "dagre"
+      ],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/flowchart.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "timeline",
+      "fixture": "fixtures/mermaid/timeline.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/timeline.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "gitGraph",
+      "fixture": "fixtures/mermaid/gitGraph.mmd",
+      "layouts": [
+        "dagre"
+      ],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/gitgraph.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "stateDiagram",
+      "fixture": "fixtures/mermaid/stateDiagram.mmd",
+      "layouts": [
+        "dagre"
+      ],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/stateDiagram.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "journey",
+      "fixture": "fixtures/mermaid/journey.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/userJourney.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "quadrantChart",
+      "fixture": "fixtures/mermaid/quadrantChart.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/quadrantChart.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "sankey",
+      "fixture": "fixtures/mermaid/sankey.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/sankey.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "packet",
+      "fixture": "fixtures/mermaid/packet.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/packet.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "xychart",
+      "fixture": "fixtures/mermaid/xychart.mmd",
+      "layouts": [],
+      "source": "synthetic: shipped detector",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "block",
+      "fixture": "fixtures/mermaid/block.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/block.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "eventmodeling",
+      "fixture": "fixtures/mermaid/eventmodeling.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/eventmodeling.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "treeView",
+      "fixture": "fixtures/mermaid/treeView.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/treeView.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "radar",
+      "fixture": "fixtures/mermaid/radar.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/radar.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "ishikawa",
+      "fixture": "fixtures/mermaid/ishikawa.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/ishikawa.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "treemap",
+      "fixture": "fixtures/mermaid/treemap.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/treemap.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "railroad",
+      "fixture": "fixtures/mermaid/railroad.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/railroad.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "railroadEbnf",
+      "fixture": "fixtures/mermaid/railroadEbnf.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/railroad.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "railroadAbnf",
+      "fixture": "fixtures/mermaid/railroadAbnf.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/railroad.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "railroadPeg",
+      "fixture": "fixtures/mermaid/railroadPeg.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/railroad.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "venn",
+      "fixture": "fixtures/mermaid/venn.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/venn.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "wardley",
+      "fixture": "fixtures/mermaid/wardley.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/wardley.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "cynefin",
+      "fixture": "fixtures/mermaid/cynefin.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/cynefin.md",
+      "negative": false,
+      "note": null
+    },
+    {
+      "id": "usecase",
+      "fixture": "fixtures/mermaid/usecase.mmd",
+      "layouts": [],
+      "source": "https://raw.githubusercontent.com/mermaid-js/mermaid/mermaid@12.0.0/packages/mermaid/src/docs/syntax/usecase.md",
+      "negative": false,
+      "note": null
+    }
+  ]
+}

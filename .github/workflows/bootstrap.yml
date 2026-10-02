@@ -1,0 +1,149 @@
+# One-off bootstrap: generates the Gradle dependency lock files and the dependency
+# verification metadata.
+#
+# Why this exists: the wrapper and `web/package-lock.json` are committed and
+# checksum-verified (see docs/adr/0001-toolchain-and-lock.md), but Gradle lock state
+# can only be produced by a Gradle run, and this project is never built locally.
+#
+# The results are published to the branch `bootstrap/deps` and offered as a pull
+# request. Nothing is pushed to the default branch by this workflow, and no secret
+# is used: only the read-only GITHUB_TOKEN plus the repository's own contents
+# permission. Run it once, merge the pull request, then disable the workflow.
+name: bootstrap
+
+on:
+  push:
+    branches: [bootstrap]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  lock-state:
+    name: generate lock files and verification metadata
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          validate-wrappers: true
+
+      - name: Build the web runtime (needed for a full release resolution)
+        run: |
+          npm ci --prefix web
+          node scripts/build-web.mjs
+
+      - name: Record the resolved toolchain and dependency graph
+        run: |
+          mkdir -p reports
+          chmod +x gradlew
+          {
+            echo "# LiteDoc toolchain and dependency record"
+            echo
+            echo "generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "commit: ${GITHUB_SHA}"
+            echo "runner: ubuntu-24.04"
+            echo
+            echo "## Versions"
+            echo "- node: $(node --version)"
+            echo "- npm: $(npm --version)"
+            echo "- java: $(java -version 2>&1 | head -1)"
+            echo "- gradle wrapper: $(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | cut -d= -f2)"
+            echo
+            echo "## Declared Android versions"
+            grep -E '^(agp|kotlin|compileSdk|minSdk|targetSdk|buildTools|coreKtx|webkit|okhttp|coroutines) ' gradle/libs.versions.toml
+            echo
+            echo "## Official sources verified before locking"
+            echo "- Android Gradle Plugin 8.13: https://developer.android.com/build/releases/agp-8-13-0-release-notes"
+            echo "- Kotlin Gradle compatibility: https://kotlinlang.org/docs/gradle-configure-project.html"
+            echo "- Gradle wrapper: https://docs.gradle.org/current/userguide/gradle_wrapper.html"
+            echo "- Gradle distribution checksum: https://services.gradle.org/distributions/gradle-8.13-bin.zip.sha256"
+            echo "- AndroidX WebKit: https://developer.android.com/jetpack/androidx/releases/webkit"
+          } > reports/toolchain-versions.txt
+          ./gradlew --no-daemon -q :app:dependencies --configuration releaseRuntimeClasspath \
+            > reports/gradle-dependencies.txt 2>&1 || true
+          npm ls --prefix web --all > reports/npm-dependencies.txt 2>&1 || true
+          cat reports/toolchain-versions.txt
+
+      - name: Generate dependency lock files
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          # `resolveAndLockAll` resolves every resolvable configuration, which is what
+          # a complete lock set requires.
+          ./gradlew --no-daemon --stacktrace resolveAndLockAll --write-locks
+
+      - name: Generate dependency verification metadata
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace \
+            --write-verification-metadata sha256,sha512 \
+            assembleRelease
+
+      - name: Show the generated lock state
+        run: |
+          set -euo pipefail
+          ls -la gradle.lockfile app/gradle.lockfile gradle/verification-metadata.xml 2>/dev/null || true
+          if [ -f gradle/verification-metadata.xml ]; then
+            python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('gradle/verification-metadata.xml')
+          root = tree.getroot()
+          components = root.findall('.//{*}component')
+          print(f'verification metadata components: {len(components)}')
+          print(f'verification metadata bytes: {__import__("pathlib").Path("gradle/verification-metadata.xml").stat().st_size}')
+          PY
+          fi
+
+      - name: Upload the generated lock state
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: bootstrap-lock-state
+          path: |
+            gradle.lockfile
+            app/gradle.lockfile
+            gradle/verification-metadata.xml
+            reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish to bootstrap/deps and open a pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "litedoc-bootstrap"
+          git config user.email "litedoc-bootstrap@users.noreply.github.com"
+          git checkout -B bootstrap/deps
+          git add -f gradle.lockfile app/gradle.lockfile gradle/verification-metadata.xml
+          if git diff --cached --quiet; then
+            echo "no lock state changes"
+            exit 0
+          fi
+          git commit -m "build: add generated Gradle lock files and dependency verification metadata"
+          git push --force origin bootstrap/deps
+          if ! gh pr list --head bootstrap/deps --json number --jq '.[0].number' | grep -q .; then
+            gh pr create \
+              --base main \
+              --head bootstrap/deps \
+              --title "build: generated Gradle lock files and verification metadata" \
+              --body "Generated by .github/workflows/bootstrap.yml. Review the lock state and verification metadata, then merge; afterwards the bootstrap workflow can be disabled."
+          fi

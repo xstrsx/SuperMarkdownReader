@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LiteDoc</string>
+
+    <string name="toolbar_back">返回</string>
+    <string name="toolbar_close">关闭</string>
+    <string name="toolbar_menu">菜单</string>
+    <string name="toolbar_documents">已打开 %1$d 个文档</string>
+
+    <string name="state_loading">正在读取文档…</string>
+    <string name="state_preparing">正在准备离线渲染引擎…</string>
+    <string name="state_rendering">正在排版…</string>
+    <string name="state_busy">正在完成图表与公式…</string>
+
+    <string name="error_title">无法打开文档</string>
+    <string name="error_no_document">没有收到可打开的本地文档。</string>
+    <string name="error_not_supported">不支持的文件类型：%1$s</string>
+    <string name="error_url_document">不支持打开网站地址。已复制该链接，可在浏览器中自行打开。</string>
+    <string name="error_unreadable">无法读取该文件（授权已失效、文件被删除或提供方不可用）。</string>
+    <string name="error_too_large">文件超过 %1$s 的阅读上限，已停止载入以避免内存问题。</string>
+    <string name="error_binary">文件看起来是二进制内容，没有按文本打开。</string>
+    <string name="error_webview_unsupported">系统 WebView 版本过低或缺少安全消息接口，已切换到源码阅读模式。</string>
+    <string name="error_engine_failed">内置渲染引擎未能启动，已显示可读的源码。</string>
+    <string name="error_many_documents">一次最多打开 %1$d 个文件；其余文件未载入，请重新选择。</string>
+
+    <string name="menu_search">搜索</string>
+    <string name="menu_toc">目录</string>
+    <string name="menu_font_size">字号</string>
+    <string name="menu_theme">主题</string>
+    <string name="menu_wrap">文本换行</string>
+    <string name="menu_source">查看源码</string>
+    <string name="menu_copy">复制全文</string>
+    <string name="menu_folder">授权附件目录</string>
+    <string name="menu_images">网络图片</string>
+    <string name="menu_export">导出 / 打印</string>
+    <string name="menu_about">第三方许可与版本</string>
+    <string name="menu_close_document">关闭当前文档</string>
+
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">明亮</string>
+    <string name="theme_dark">深色</string>
+
+    <string name="font_size_title">正文字号</string>
+    <string name="font_small">小</string>
+    <string name="font_normal">标准</string>
+    <string name="font_large">大</string>
+    <string name="font_huge">特大</string>
+
+    <string name="search_hint">在正文中搜索</string>
+    <string name="search_next">下一个</string>
+    <string name="search_prev">上一个</string>
+    <string name="search_count">%1$d / %2$d</string>
+    <string name="search_none">未找到匹配内容</string>
+
+    <string name="export_title">导出 / 打印</string>
+    <string name="export_pdf">系统打印 / 保存为 PDF</string>
+    <string name="export_source">导出净化后的源码</string>
+    <string name="export_preparing">正在准备完整内容（屏幕外公式与图表）…</string>
+    <string name="export_partial">导出准备超时，仍有 %1$d 项未完成</string>
+    <string name="export_failed">导出失败：%1$s</string>
+    <string name="export_done">导出完成</string>
+    <string name="export_printing">系统打印进行中，这期间不切换文档</string>
+
+    <string name="folder_grant_title">授权附件目录</string>
+    <string name="folder_grant_message">单文件授权不等于同目录权限。请选择该文档所在的文件夹，用于解析文档中引用的本地图片等附件。所有相对路径都会被限制在该目录内。</string>
+    <string name="folder_grant_pick">选择文件夹</string>
+    <string name="folder_grant_failed">目录授权失败或未持久化，附件仍不可用。</string>
+    <string name="folder_not_containing">所选文件夹不包含当前文档。已按“此文件位于该目录”使用该文件夹作为附件根目录。</string>
+    <string name="folder_granted">已授权附件目录：%1$s</string>
+    <string name="folder_revoke">撤销已保存的目录授权</string>
+    <string name="folder_revoked">已撤销目录授权。</string>
+
+    <string name="images_title">网络图片</string>
+    <string name="images_enabled">允许加载文档中的 http/https 图片</string>
+    <string name="images_lan">允许局域网地址（回环与本机地址始终拒绝）</string>
+    <string name="images_clear_cache">清除图片缓存</string>
+    <string name="images_cache_cleared">图片缓存已清除（%1$s）。</string>
+
+    <string name="about_title">第三方许可与版本</string>
+    <string name="about_close">关闭</string>
+
+    <string name="copy_done">已复制</string>
+    <string name="link_copied">已复制链接</string>
+    <string name="unsupported_image">不支持的图片引用</string>
+    <string name="viewer_source_mode">源码模式（未启用富文本渲染）</string>
+</resources>

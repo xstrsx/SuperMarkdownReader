@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/action_search" android:title="@string/menu_search" android:showAsAction="never" />
+    <item android:id="@+id/action_toc" android:title="@string/menu_toc" android:showAsAction="never" />
+    <item android:id="@+id/action_font" android:title="@string/menu_font_size" android:showAsAction="never" />
+    <item android:id="@+id/action_theme" android:title="@string/menu_theme" android:showAsAction="never" />
+    <item android:id="@+id/action_wrap" android:title="@string/menu_wrap" android:checkable="true" android:showAsAction="never" />
+    <item android:id="@+id/action_source" android:title="@string/menu_source" android:showAsAction="never" />
+    <item android:id="@+id/action_copy" android:title="@string/menu_copy" android:showAsAction="never" />
+    <item android:id="@+id/action_folder" android:title="@string/menu_folder" android:showAsAction="never" />
+    <item android:id="@+id/action_images" android:title="@string/menu_images" android:showAsAction="never" />
+    <item android:id="@+id/action_export" android:title="@string/menu_export" android:showAsAction="never" />
+    <item android:id="@+id/action_about" android:title="@string/menu_about" android:showAsAction="never" />
+    <item android:id="@+id/action_close" android:title="@string/menu_close_document" android:showAsAction="never" />
+</menu>

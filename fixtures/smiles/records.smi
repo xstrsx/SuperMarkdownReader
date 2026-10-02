@@ -1,0 +1,15 @@
+# 独立 SMILES 样例：每行 "SMILES[ 名称]"，空行与 # 注释被忽略
+CCO 乙醇
+c1ccccc1 苯
+CC(=O)Oc1ccccc1C(=O)O 阿司匹林
+CN1C=NC2=C1C(=O)N(C(=O)N2C)C 咖啡因
+CC(C)C[C@H](NC(=O)[C@@H](N)Cc1ccccc1)C(=O)O 立体标记示例
+[13CH4] 同位素标记甲烷
+[Na+].[Cl-] 离子对（断开组分）
+O=C([O-])C 乙酸根离子
+
+# 以下记录不在本版承诺范围内，应逐条提示而不影响其它结构
+CCO>>CC=O 反应式（不支持）
+InChI=1S/CH4/h1H4 InChI（不支持）
+C1CC 未闭合的坏记录（应只影响本条）
+CO.O 水合物（断开组分，支持）

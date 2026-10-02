@@ -1,0 +1,311 @@
+# Continuous verification: source checks, offline web build, unsigned Android build.
+#
+# Nothing here signs, publishes or installs anything, and the workflow never
+# touches release secrets. Pull requests (including forks) only ever get read
+# permissions and an explicitly-labelled *unsigned* artifact.
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION_FILE: .node-version
+  JAVA_VERSION: '17'
+
+jobs:
+  # ---------------------------------------------------------------- source checks
+  source-check:
+    name: source checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Install locked dependencies
+        run: npm ci --prefix web
+
+      - name: Record tool versions
+        run: |
+          mkdir -p reports/code-check-report
+          {
+            echo "node $(node --version)"
+            echo "npm $(npm --version)"
+            echo "python $(python3 --version)"
+            echo "locks:"
+            echo "  web/package-lock.json $(sha256sum web/package-lock.json | cut -d' ' -f1)"
+            echo "  gradle/wrapper/gradle-wrapper.properties $(sha256sum gradle/wrapper/gradle-wrapper.properties | cut -d' ' -f1)"
+          } | tee reports/code-check-report/toolchain.txt
+
+      - name: Verify the Gradle wrapper distribution checksum is pinned
+        run: |
+          grep -q '^distributionSha256Sum=' gradle/wrapper/gradle-wrapper.properties
+          grep -q 'gradle-8.13-bin.zip' gradle/wrapper/gradle-wrapper.properties
+          echo "wrapper distribution and checksum are pinned"
+
+      - name: Type check (TypeScript)
+        run: npm run typecheck --prefix web
+
+      - name: Markdown pipeline checks
+        run: npm run test:markdown --prefix web
+
+      - name: Sanitiser checks (jsdom)
+        run: npm run test:sanitizers --prefix web
+
+      - name: Mermaid support matrix check
+        run: npm run verify:mermaid --prefix web
+
+      - name: Upload code-check report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: code-check-report
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  # ------------------------------------------------------------------- web build
+  web-build:
+    name: offline web build
+    runs-on: ubuntu-24.04
+    needs: [source-check]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Install locked dependencies
+        run: npm ci --prefix web
+
+      - name: Build the bundled runtime
+        run: npm run build --prefix web
+
+      - name: Static resource closure check
+        run: npm run verify:closure --prefix web
+
+      - name: Collect third-party licence inventory
+        run: node scripts/collect-licences.mjs
+
+      - name: Upload the built runtime
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: web-dist
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload web build reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: web-build-reports
+          path: |
+            reports/resource-closure.json
+            reports/licences.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  # --------------------------------------------------------------- android build
+  android-build:
+    name: unsigned release build
+    runs-on: ubuntu-24.04
+    needs: [web-build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Ensure the required SDK components are installed
+        run: |
+          set -euo pipefail
+          if command -v sdkmanager >/dev/null 2>&1; then
+            yes | sdkmanager --licenses >/dev/null 2>&1 || true
+            sdkmanager "platforms;android-36" "build-tools;35.0.0" >/dev/null 2>&1 || true
+          fi
+          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
+          ls "${ANDROID_HOME:-/usr/local/lib/android/sdk}/platforms" || true
+
+      - name: Download the built runtime
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: web-dist
+          path: web/dist
+
+      # Kotlin unit tests need the Android toolchain, so they live here rather than
+      # in source-check (which stays a pure Node/python check).
+      - name: Kotlin unit tests and lint
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest lintRelease
+
+      - name: Build the unsigned release APK
+        run: ./gradlew --no-daemon --stacktrace assembleRelease
+
+      - name: Size report
+        run: |
+          python3 scripts/size-report.py \
+            --apk app/build/outputs/apk/release/app-release-unsigned.apk \
+            --out reports/size-report.md \
+            --json reports/size-report.json
+
+      - name: Static APK verification (unsigned)
+        run: |
+          python3 scripts/verify-apk.py \
+            --apk app/build/outputs/apk/release/app-release-unsigned.apk \
+            --mode unsigned \
+            --expect-application-id dev.litedoc.viewer \
+            --expect-min-sdk 26 \
+            --expect-target-sdk 36 \
+            --out reports/apk-verification-unsigned.json
+
+      - name: Build information
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          apk = pathlib.Path('app/build/outputs/apk/release/app-release-unsigned.apk')
+          info = {
+              'commit': os.environ.get('GITHUB_SHA'),
+              'workflowRun': f"{os.environ.get('GITHUB_SERVER_URL')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}",
+              'artifactKind': 'unsigned-internal',
+              'applicationId': 'dev.litedoc.viewer',
+              'apkBytes': apk.stat().st_size,
+              'apkSha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
+              'lockHashes': {
+                  'web/package-lock.json': hashlib.sha256(pathlib.Path('web/package-lock.json').read_bytes()).hexdigest(),
+                  'gradle/wrapper/gradle-wrapper.properties': hashlib.sha256(pathlib.Path('gradle/wrapper/gradle-wrapper.properties').read_bytes()).hexdigest(),
+              },
+              'runtimeVerification': '待用户手动下载验证',
+          }
+          pathlib.Path('reports/build-info-unsigned.json').write_text(json.dumps(info, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+          PY
+
+      - name: Upload unsigned build artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: unsigned-internal-build
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/mapping/release/mapping.txt
+            app/build/reports/tests/
+            reports/
+            app/build/reports/lint-results-release.html
+            app/build/reports/lint-results-release.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Unsigned release build"
+            echo
+            echo "This artifact is **not** a user-installable LiteDoc release: it is unsigned by design"
+            echo "and exists to verify compilation, resources and size before signing."
+            echo
+            if [ -f reports/size-report.md ]; then cat reports/size-report.md; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------- diagnostics
+  # Publishes this run's log excerpt to the `ci-report` branch so a failure can be
+  # read without downloading artifacts. Logs of a public repository are already
+  # public in the Actions UI; nothing secret is written here.
+  diagnostics:
+    name: publish log excerpt
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    needs: [source-check, web-build, android-build]
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Fetch this run's logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          status=$(curl -sS -o logs.zip -w '%{http_code}' -L \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/logs" || true)
+          if [ "${status}" != "200" ]; then
+            echo "log download returned ${status}" > reports/ci-latest.log
+            exit 0
+          fi
+          python3 - <<'PY'
+          import re, zipfile, pathlib
+          patterns = re.compile(r'(?i)(error|fail|exception|cannot|unresolved|what went wrong|not found|refus|mismatch)')
+          out = []
+          with zipfile.ZipFile('logs.zip') as archive:
+              for name in sorted(archive.namelist()):
+                  if name.endswith('/'):
+                      continue
+                  text = archive.read(name).decode('utf-8', 'replace')
+                  hits = [line for line in text.splitlines() if patterns.search(line)]
+                  if hits:
+                      out.append(f'===== {name} =====')
+                      out.extend(hits[-400:])
+          pathlib.Path('reports/ci-latest.log').write_text('\n'.join(out[-4000:]) or 'no matching lines', encoding='utf-8')
+          print(f'excerpt lines: {len(out)}')
+          PY
+
+      - name: Publish to the ci-report branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            echo "# LiteDoc CI log excerpt"
+            echo
+            echo "- run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- commit: ${GITHUB_SHA}"
+            echo "- generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            echo '```'
+            cat reports/ci-latest.log
+            echo '```'
+          } > report.md
+          mkdir -p publish && cp report.md publish/report.md
+          cd publish
+          git init -q
+          git config user.name "litedoc-ci"
+          git config user.email "litedoc-ci@users.noreply.github.com"
+          git add report.md
+          git commit -qm "ci: log excerpt for ${GITHUB_RUN_ID}"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:ci-report
