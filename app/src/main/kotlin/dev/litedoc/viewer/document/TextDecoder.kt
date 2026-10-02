@@ -131,13 +131,18 @@ object TextDecoder {
             }
         }
 
-        // Strict UTF-8 first: if it succeeds the content is certainly UTF-8.
-        if (isStrictUtf8(bytes)) {
-            return Result.Decoded(String(bytes, Charsets.UTF_8), UTF8, hadBom = false)
-        }
-
+        // Binary probe before the UTF-8 attempt: byte-wise UTF-8 validation accepts any
+        // pure-ASCII stream, so NUL-padded binary data would otherwise be presented as
+        // text. Legitimate UTF-16 without a BOM is protected inside the probe by the
+        // alternating-NUL pattern check above, and real UTF-16 text carries high bytes
+        // that fail strict UTF-8 anyway.
         if (looksBinary(head)) {
             return Result.Binary("NUL or control bytes in the first bytes of the file")
+        }
+
+        // Strict UTF-8 next: if it succeeds the content is certainly UTF-8.
+        if (isStrictUtf8(bytes)) {
+            return Result.Decoded(String(bytes, Charsets.UTF_8), UTF8, hadBom = false)
         }
 
         data class Scored(val name: String, val text: String, val score: Double)
