@@ -1,3 +1,5 @@
+import java.io.File
+
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.tasks.InputDirectory
@@ -110,13 +112,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-            freeCompilerArgs.addAll("-Xjvm-default=all")
-        }
-    }
-
     buildFeatures {
         buildConfig = true
         resValues = false
@@ -170,6 +165,14 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = false
         unitTests.isReturnDefaultValues = false
+    }
+}
+
+// Kotlin compilation options are configured on the top-level Kotlin extension.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        freeCompilerArgs.addAll("-Xjvm-default=all")
     }
 }
 

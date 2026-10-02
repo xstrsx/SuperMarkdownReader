@@ -23,11 +23,8 @@ if (lockStatePresent) {
             lockAllConfigurations()
         }
     }
-    if (file("gradle/verification-metadata.xml").exists()) {
-        dependencyVerification {
-            verifyMetadataFile = file("gradle/verification-metadata.xml")
-        }
-    }
+    // Gradle picks up gradle/verification-metadata.xml automatically; there is no
+    // project-level DSL for it, so nothing else is configured here.
     logger.lifecycle("LiteDoc: dependency lock state detected, locking enabled.")
 } else {
     logger.lifecycle("LiteDoc: no dependency lock state committed yet; run bootstrap.yml.")
