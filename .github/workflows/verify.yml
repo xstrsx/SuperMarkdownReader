@@ -242,11 +242,13 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------- diagnostics
-  # Publishes this run's log excerpt to the `ci-report` branch so a failure can be
-  # read without downloading artifacts. Logs of a public repository are already
-  # public in the Actions UI; nothing secret is written here.
+  # Publishes job statuses plus an error excerpt of this run to the `ci-report`
+  # branch, so a failure can be diagnosed without downloading artifacts. Logs of a
+  # public repository are already visible in the Actions UI; nothing secret is
+  # written here. Job logs are fetched per job, because the *aggregate* run log only
+  # exists after the whole run (including this job) has finished.
   diagnostics:
-    name: publish log excerpt
+    name: publish run diagnostics
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     needs: [source-check, web-build, android-build]
@@ -254,35 +256,60 @@ jobs:
       contents: write
       actions: read
     steps:
-      - name: Fetch this run's logs
+      - name: Collect job statuses and log excerpts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          mkdir -p reports
-          status=$(curl -sS -o logs.zip -w '%{http_code}' -L \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/logs" || true)
-          if [ "${status}" != "200" ]; then
-            echo "log download returned ${status}" > reports/ci-latest.log
-            exit 0
-          fi
+          mkdir -p reports logs
+          curl -sS -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
+            -o jobs.json || echo '{}' > jobs.json
           python3 - <<'PY'
-          import re, zipfile, pathlib
-          patterns = re.compile(r'(?i)(error|fail|exception|cannot|unresolved|what went wrong|not found|refus|mismatch)')
-          out = []
-          with zipfile.ZipFile('logs.zip') as archive:
-              for name in sorted(archive.namelist()):
-                  if name.endswith('/'):
-                      continue
-                  text = archive.read(name).decode('utf-8', 'replace')
-                  hits = [line for line in text.splitlines() if patterns.search(line)]
-                  if hits:
-                      out.append(f'===== {name} =====')
-                      out.extend(hits[-400:])
-          pathlib.Path('reports/ci-latest.log').write_text('\n'.join(out[-4000:]) or 'no matching lines', encoding='utf-8')
-          print(f'excerpt lines: {len(out)}')
+          import json, os, pathlib, re, subprocess, zipfile
+
+          patterns = re.compile(r'(?i)(error|fail|exception|cannot|unresolved|what went wrong|not found|refus|mismatch|denied)')
+          try:
+              payload = json.loads(pathlib.Path('jobs.json').read_text(encoding='utf-8'))
+          except Exception:
+              payload = {}
+
+          status_lines = ['# LiteDoc run diagnostics', '',
+                          f"- run: {os.environ.get('GITHUB_SERVER_URL')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}",
+                          f"- commit: {os.environ.get('GITHUB_SHA')}", '']
+          excerpts: list[str] = []
+          jobs = payload.get('jobs') or []
+          if not jobs:
+              status_lines.append('- job list unavailable (API request failed)')
+          for job in jobs:
+              status_lines.append(f"- {job.get('name')}: {job.get('status')}/{job.get('conclusion')}")
+              if job.get('status') != 'completed':
+                  continue
+              url = f"{os.environ['GITHUB_API_URL']}/repos/{os.environ['GITHUB_REPOSITORY']}/actions/jobs/{job['id']}/logs"
+              target = pathlib.Path(f"logs/{job['id']}.zip")
+              code = subprocess.run(
+                  ['curl', '-sS', '-L', '-o', str(target), '-w', '%{http_code}',
+                   '-H', f"Authorization: Bearer {os.environ['GH_TOKEN']}", url],
+                  capture_output=True, text=True, check=False).stdout.strip()
+              if code != '200':
+                  excerpts.append(f"===== {job.get('name')} ===== (job log unavailable: HTTP {code})")
+                  continue
+              try:
+                  with zipfile.ZipFile(target) as archive:
+                      for name in sorted(archive.namelist()):
+                          if name.endswith('/'):
+                              continue
+                          text = archive.read(name).decode('utf-8', 'replace')
+                          hits = [line for line in text.splitlines() if patterns.search(line)]
+                          if hits:
+                              excerpts.append(f"===== {job.get('name')} / {name} =====")
+                              excerpts.extend(hits[-300:])
+              except zipfile.BadZipFile:
+                  excerpts.append(f"===== {job.get('name')} ===== (log archive unreadable)")
+
+          body = '\n'.join(status_lines) + '\n\n```\n' + '\n'.join(excerpts[-4000:] or ['no matching lines']) + '\n```\n'
+          pathlib.Path('reports/diagnostics.md').write_text(body, encoding='utf-8')
+          print(body[:2000])
           PY
 
       - name: Publish to the ci-report branch
@@ -290,22 +317,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          {
-            echo "# LiteDoc CI log excerpt"
-            echo
-            echo "- run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            echo "- commit: ${GITHUB_SHA}"
-            echo "- generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo
-            echo '```'
-            cat reports/ci-latest.log
-            echo '```'
-          } > report.md
-          mkdir -p publish && cp report.md publish/report.md
+          mkdir -p publish
+          cp reports/diagnostics.md publish/report.md
           cd publish
           git init -q
           git config user.name "litedoc-ci"
           git config user.email "litedoc-ci@users.noreply.github.com"
           git add report.md
-          git commit -qm "ci: log excerpt for ${GITHUB_RUN_ID}"
+          git commit -qm "ci: diagnostics for run ${GITHUB_RUN_ID}"
           git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:ci-report
