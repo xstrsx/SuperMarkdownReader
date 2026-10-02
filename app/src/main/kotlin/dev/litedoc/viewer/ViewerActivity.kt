@@ -151,6 +151,8 @@ class ViewerActivity : Activity(), ViewerMessageBridge.Host, BridgeUiActions {
             viewer.announce(getString(R.string.error_webview_unsupported))
         }
 
+        registerBackCallback()
+
         stateJob = uiScope.launch {
             viewer.state.collect { state -> onState(state) }
         }
@@ -872,17 +874,48 @@ class ViewerActivity : Activity(), ViewerMessageBridge.Host, BridgeUiActions {
         viewer.submit(intent)
     }
 
-    @Deprecated("The platform back key; predictive back is not used in this version.")
-    override fun onBackPressed() {
+    /**
+     * Back handling.
+     *
+     * With `targetSdk 36` predictive back is enabled, so on API 33+ the platform no
+     * longer calls `onBackPressed`; the callback below is what receives the gesture.
+     * The legacy override is kept for older releases and simply delegates to the same
+     * handler, which is why the "migrate to OnBackPressedDispatcher" lint issue does
+     * not apply here.
+     */
+    private fun handleBack(): Boolean {
         if (searchBar.visibility == View.VISIBLE) {
             closeSearch()
-            return
+            return true
         }
         if (webView.canGoBack()) {
             webView.goBack()
-            return
+            return true
         }
-        super.onBackPressed()
+        return false
+    }
+
+    private fun registerBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        runCatching {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+            ) {
+                if (!handleBack()) {
+                    finish()
+                }
+            }
+        }.onFailure { error ->
+            Redact.w("back callback registration failed: ${error.javaClass.simpleName}")
+        }
+    }
+
+    @Suppress("GestureBackNavigation")
+    @Deprecated("Superseded by OnBackInvokedDispatcher from API 33; kept for older releases.")
+    override fun onBackPressed() {
+        if (!handleBack()) {
+            super.onBackPressed()
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
