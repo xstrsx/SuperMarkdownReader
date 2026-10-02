@@ -33,7 +33,10 @@ const failures = [];
 const notes = [];
 const stats = {};
 
+const seenFailures = new Set();
 function fail(message) {
+  if (seenFailures.has(message)) return;
+  seenFailures.add(message);
   failures.push(message);
 }
 
@@ -145,16 +148,23 @@ while (queue.length > 0) {
     }
     if (!visited.has(resolved)) queue.push(resolved);
   }
-  for (const match of source.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
-    const value = match[1];
-    if (value.startsWith('data:') || value.startsWith('blob:') || value.startsWith('#')) continue;
-    if (/^(https?:)?\/\//.test(value)) {
-      fail(`${relative} has a remote CSS url(): ${value}`);
-      continue;
-    }
-    const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relative), value));
-    if (!existsSync(path.join(distDir, resolved))) {
-      fail(`${relative} references a missing asset: ${value} -> ${resolved}`);
+  // `url()` can only fetch something from a stylesheet. Inside JavaScript the
+  // occurrences are runtime-generated CSS (Mermaid writes `url(#id)` and
+  // `url(${name}-drop-shadow)` into SVG filters), so only CSS files are scanned.
+  if (relative.endsWith('.css')) {
+    for (const match of source.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
+      const value = match[1].trim();
+      if (value.length === 0) continue;
+      if (value.startsWith('data:') || value.startsWith('blob:') || value.startsWith('#')) continue;
+      if (value.includes('${') || value.includes('<')) continue;
+      if (/^(https?:)?\/\//.test(value)) {
+        fail(`${relative} has a remote CSS url(): ${value}`);
+        continue;
+      }
+      const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(relative), value));
+      if (!existsSync(path.join(distDir, resolved))) {
+        fail(`${relative} references a missing asset: ${value} -> ${resolved}`);
+      }
     }
   }
 }
