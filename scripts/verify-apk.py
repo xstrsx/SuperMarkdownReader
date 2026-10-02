@@ -90,7 +90,7 @@ def parse_badging(text: str) -> dict:
             match = re.search(r"versionName='([^']*)'", line)
             if match:
                 facts["version_name"] = match.group(1)
-        elif line.startswith("sdkVersion:"):
+        elif line.startswith("sdkVersion:") or line.startswith("minSdkVersion:"):
             facts["min_sdk"] = line.split("'")[1] if "'" in line else ""
         elif line.startswith("targetSdkVersion:"):
             facts["target_sdk"] = line.split("'")[1] if "'" in line else ""
@@ -209,9 +209,20 @@ def main() -> int:
             if args.expect_version_code and str(facts.get("version_code")) != str(args.expect_version_code):
                 failures.append(f"versionCode mismatch: {facts.get('version_code')}")
             permissions = facts.get("permissions", [])
-            unexpected = [p for p in permissions if p != "android.permission.INTERNET"]
+            # `dev.litedoc.viewer.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` is declared by
+            # AGP/androidx.core for the app's own non-exported dynamic receivers: it is a
+            # signature-level permission inside the application's namespace and grants no
+            # access to other apps' data. Anything outside that namespace is a failure.
+            self_defined = [p for p in permissions if p.startswith(f"{args.expect_application_id}.")]
+            unexpected = [
+                p
+                for p in permissions
+                if p != "android.permission.INTERNET" and p not in self_defined
+            ]
             if unexpected:
                 failures.append(f"unexpected permissions: {', '.join(unexpected)}")
+            for entry in self_defined:
+                notes.append(f"app-defined signature permission (expected): {entry}")
             if "android.permission.INTERNET" not in permissions:
                 failures.append("INTERNET permission is missing (the image proxy needs it)")
             if facts.get("launchable"):
