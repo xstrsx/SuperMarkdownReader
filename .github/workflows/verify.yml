@@ -39,8 +39,13 @@ jobs:
         with:
           node-version-file: .node-version
 
+      - name: Prepare the report directory
+        run: mkdir -p reports/logs
+
       - name: Install locked dependencies
-        run: npm ci --prefix web
+        run: |
+          set -o pipefail
+          npm ci --prefix web 2>&1 | tee -a reports/logs/source-check.log
 
       - name: Record tool versions
         run: |
@@ -61,16 +66,24 @@ jobs:
           echo "wrapper distribution and checksum are pinned"
 
       - name: Type check (TypeScript)
-        run: npm run typecheck --prefix web
+        run: |
+          set -o pipefail
+          npm run typecheck --prefix web 2>&1 | tee -a reports/logs/source-check.log
 
       - name: Markdown pipeline checks
-        run: npm run test:markdown --prefix web
+        run: |
+          set -o pipefail
+          npm run test:markdown --prefix web 2>&1 | tee -a reports/logs/source-check.log
 
       - name: Sanitiser checks (jsdom)
-        run: npm run test:sanitizers --prefix web
+        run: |
+          set -o pipefail
+          npm run test:sanitizers --prefix web 2>&1 | tee -a reports/logs/source-check.log
 
       - name: Mermaid support matrix check
-        run: npm run verify:mermaid --prefix web
+        run: |
+          set -o pipefail
+          npm run verify:mermaid --prefix web 2>&1 | tee -a reports/logs/source-check.log
 
       - name: Upload code-check report
         if: always()
@@ -98,17 +111,29 @@ jobs:
         with:
           node-version-file: .node-version
 
+      - name: Prepare the report directory
+        run: mkdir -p reports/logs
+
       - name: Install locked dependencies
-        run: npm ci --prefix web
+        run: |
+          set -o pipefail
+          npm ci --prefix web 2>&1 | tee -a reports/logs/source-check.log
 
       - name: Build the bundled runtime
-        run: npm run build --prefix web
+        run: |
+          set -o pipefail
+          mkdir -p reports/logs
+          npm run build --prefix web 2>&1 | tee -a reports/logs/web-build.log
 
       - name: Static resource closure check
-        run: npm run verify:closure --prefix web
+        run: |
+          set -o pipefail
+          npm run verify:closure --prefix web 2>&1 | tee -a reports/logs/web-build.log
 
       - name: Collect third-party licence inventory
-        run: node scripts/collect-licences.mjs
+        run: |
+          set -o pipefail
+          node scripts/collect-licences.mjs 2>&1 | tee -a reports/logs/web-build.log
 
       - name: Upload the built runtime
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -126,6 +151,7 @@ jobs:
           path: |
             reports/resource-closure.json
             reports/licences.json
+            reports/logs/
           if-no-files-found: warn
           retention-days: 14
 
@@ -170,11 +196,15 @@ jobs:
       # in source-check (which stays a pure Node/python check).
       - name: Kotlin unit tests and lint
         run: |
+          set -o pipefail
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest lintRelease
+          mkdir -p reports/logs
+          ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest lintRelease 2>&1 | tee -a reports/logs/android-build.log
 
       - name: Build the unsigned release APK
-        run: ./gradlew --no-daemon --stacktrace assembleRelease
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace assembleRelease 2>&1 | tee -a reports/logs/android-build.log
 
       - name: Size report
         run: |
@@ -256,60 +286,53 @@ jobs:
       contents: write
       actions: read
     steps:
-      - name: Collect job statuses and log excerpts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Record job conclusions
+        run: |
+          mkdir -p reports
+          {
+            echo "# LiteDoc run diagnostics"
+            echo
+            echo "- run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- commit: ${GITHUB_SHA}"
+            echo "- generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            echo "## Job results"
+            echo "- source checks: ${{ needs.source-check.result }}"
+            echo "- offline web build: ${{ needs.web-build.result }}"
+            echo "- unsigned release build: ${{ needs.android-build.result }}"
+            echo
+          } > reports/diagnostics.md
+
+      - name: Download every report artifact of this run
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: incoming
+          merge-multiple: true
+
+      - name: Append error excerpts from the job logs
         run: |
           set -euo pipefail
-          mkdir -p reports logs
-          curl -sS -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
-            -o jobs.json || echo '{}' > jobs.json
           python3 - <<'PY'
-          import json, os, pathlib, re, subprocess, zipfile
+          import pathlib, re
 
-          patterns = re.compile(r'(?i)(error|fail|exception|cannot|unresolved|what went wrong|not found|refus|mismatch|denied)')
-          try:
-              payload = json.loads(pathlib.Path('jobs.json').read_text(encoding='utf-8'))
-          except Exception:
-              payload = {}
+          patterns = re.compile(r'(?i)(error|fail|exception|cannot|unresolved|what went wrong|not found|refus|mismatch|denied|FAIL)')
+          excerpt: list[str] = []
+          logs = sorted(pathlib.Path('incoming').rglob('*.log'))
+          for log in logs:
+              text = log.read_text(encoding='utf-8', errors='replace')
+              hits = [line for line in text.splitlines() if patterns.search(line)]
+              excerpt.append(f"===== {log.name} ({len(text.splitlines())} lines) =====")
+              excerpt.extend(hits[-400:] or ['no matching lines'])
+          with pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8') as handle:
+              handle.write("\n```\n" + "\n".join(excerpt[-4000:] or ['no captured logs']) + "\n```\n")
 
-          status_lines = ['# LiteDoc run diagnostics', '',
-                          f"- run: {os.environ.get('GITHUB_SERVER_URL')}/{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ.get('GITHUB_RUN_ID')}",
-                          f"- commit: {os.environ.get('GITHUB_SHA')}", '']
-          excerpts: list[str] = []
-          jobs = payload.get('jobs') or []
-          if not jobs:
-              status_lines.append('- job list unavailable (API request failed)')
-          for job in jobs:
-              status_lines.append(f"- {job.get('name')}: {job.get('status')}/{job.get('conclusion')}")
-              if job.get('status') != 'completed':
-                  continue
-              url = f"{os.environ['GITHUB_API_URL']}/repos/{os.environ['GITHUB_REPOSITORY']}/actions/jobs/{job['id']}/logs"
-              target = pathlib.Path(f"logs/{job['id']}.zip")
-              code = subprocess.run(
-                  ['curl', '-sS', '-L', '-o', str(target), '-w', '%{http_code}',
-                   '-H', f"Authorization: Bearer {os.environ['GH_TOKEN']}", url],
-                  capture_output=True, text=True, check=False).stdout.strip()
-              if code != '200':
-                  excerpts.append(f"===== {job.get('name')} ===== (job log unavailable: HTTP {code})")
-                  continue
-              try:
-                  with zipfile.ZipFile(target) as archive:
-                      for name in sorted(archive.namelist()):
-                          if name.endswith('/'):
-                              continue
-                          text = archive.read(name).decode('utf-8', 'replace')
-                          hits = [line for line in text.splitlines() if patterns.search(line)]
-                          if hits:
-                              excerpts.append(f"===== {job.get('name')} / {name} =====")
-                              excerpts.extend(hits[-300:])
-              except zipfile.BadZipFile:
-                  excerpts.append(f"===== {job.get('name')} ===== (log archive unreadable)")
-
-          body = '\n'.join(status_lines) + '\n\n```\n' + '\n'.join(excerpts[-4000:] or ['no matching lines']) + '\n```\n'
-          pathlib.Path('reports/diagnostics.md').write_text(body, encoding='utf-8')
-          print(body[:2000])
+          for report in sorted(pathlib.Path('incoming').rglob('*.json')):
+              head = report.read_text(encoding='utf-8', errors='replace')
+              if '"fail"' in head or '"failures": [' in head:
+                  handle = pathlib.Path('reports/diagnostics.md').open('a', encoding='utf-8')
+                  handle.write(f"\n### {report.name}\n\n```json\n{head[:4000]}\n```\n")
+                  handle.close()
           PY
 
       - name: Publish to the ci-report branch

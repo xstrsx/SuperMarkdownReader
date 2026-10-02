@@ -91,7 +91,31 @@ const jsFiles = manifest.files
   .map((entry) => entry.path)
   .filter((file) => file.endsWith('.js') || file.endsWith('.mjs'));
 
-const importPattern = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
+/**
+ * Extracts module specifiers from a built file.
+ *
+ * Minified bundles keep their static imports at the top of the file, so the
+ * leading import block is scanned as a whole; the rest of the file is only
+ * searched for dynamic `import("…")` with a strict boundary. A loose
+ * `from|import` search over minified code produces false positives from string
+ * literals (`from",s.$export="`), which would make the check meaningless.
+ */
+function importSpecifiers(source) {
+  const specifiers = [];
+  const lead = /^(?:\s*import\s*[^;"']*?from\s*["'][^"']+["'];|\s*import\s*["'][^"']+["'];|\s*import\s*\(\s*["'][^"']+["']\s*\);)+/.exec(
+    source.slice(0, 40000),
+  );
+  if (lead) {
+    for (const match of lead[0].matchAll(/from\s*["']([^"']+)["']/g)) specifiers.push(match[1]);
+    for (const match of lead[0].matchAll(/import\s*["']([^"']+)["']/g)) specifiers.push(match[1]);
+    for (const match of lead[0].matchAll(/import\s*\(\s*["']([^"']+)["']\s*\)/g)) specifiers.push(match[1]);
+  }
+  for (const match of source.matchAll(/(?:^|[^\w$.])import\s*\(\s*["']([^"']+)["']\s*\)/g)) {
+    specifiers.push(match[1]);
+  }
+  return specifiers;
+}
+
 const visited = new Set();
 const queue = jsFiles.slice();
 
@@ -102,8 +126,7 @@ while (queue.length > 0) {
   const file = path.join(distDir, relative);
   if (!existsSync(file)) continue;
   const source = await readFile(file, 'utf8');
-  for (const match of source.matchAll(importPattern)) {
-    const specifier = match[1];
+  for (const specifier of importSpecifiers(source)) {
     if (/^(https?:)?\/\//.test(specifier)) {
       note(`${relative} contains a remote specifier: ${specifier}`);
       continue;
