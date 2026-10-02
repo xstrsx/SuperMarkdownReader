@@ -66,8 +66,10 @@ base64 -w0 litedoc-release.p12 > litedoc-release.p12.base64
    `workflow_dispatch`）。
 3. `guard` 校验：仅 `v*` 标签或默认分支；发布 commit 必须属于 `main` 历史。
 4. `build` 生成无签名 APK 并完成静态校验与包体报告。
-5. `sign` 在受保护环境中 zipalign + apksigner，并核对证书指纹与
-   `EXPECTED_SIGNER_SHA256` 完全一致；keystore 只存在于 `RUNNER_TEMP`，结束时删除。
+5. `sign` 在受保护环境中工作：先把 keystore 解码到 `RUNNER_TEMP`，用 `keytool -list`
+   **预检** alias 是否存在、证书 SHA-256 是否等于 `EXPECTED_SIGNER_SHA256`
+   （不一致就在签名前失败，避免产生签名身份错误的 APK），然后 zipalign + apksigner；
+   签名后再核对一次并由 `apksigner verify --print-certs` 输出证书；keystore 在步骤结束时删除。
 6. `verify-signed` 对签名产物再校验并产出 `SHA256SUMS`、`build-info.json`。
 7. 需要时（手动勾选 `publish_draft`）创建 **draft** GitHub Release；公开发布由用户决定。
 

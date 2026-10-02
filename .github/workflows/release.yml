@@ -220,6 +220,23 @@ jobs:
           printf '%s' "${KEYSTORE_BASE64}" | base64 -d > "${keystore}"
           trap 'shred -u "${keystore}" 2>/dev/null || rm -f "${keystore}"' EXIT
 
+          # Preflight before any signing work: prove that the alias resolves inside the
+          # keystore and that the certificate really is the expected one. This keeps a
+          # wrong alias or a mixed-up keystore from producing a differently-signed APK.
+          expected_fpr="$(printf '%s' "${EXPECTED_SIGNER_SHA256}" | tr -d ':' | tr 'A-F' 'a-f')"
+          actual_fpr="$(keytool -list -v -keystore "${keystore}" -storetype PKCS12 \
+              -alias "${KEY_ALIAS}" -storepass:env KEYSTORE_PASSWORD 2>/dev/null \
+            | grep -m1 'SHA256:' | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f')"
+          if [ -z "${actual_fpr}" ]; then
+            echo "::error::the keystore has no entry for alias '${KEY_ALIAS}' (or it cannot be read)"
+            exit 1
+          fi
+          if [ "${actual_fpr}" != "${expected_fpr}" ]; then
+            echo "::error::certificate SHA-256 mismatch: keystore=${actual_fpr} expected=${expected_fpr}"
+            exit 1
+          fi
+          echo "preflight ok: alias '${KEY_ALIAS}' resolves, certificate SHA-256 ${actual_fpr}"
+
           "${build_tools}/zipalign" -f -p 4 work-unsigned.apk aligned.apk
           # Passwords are supplied through environment variables, never on the
           # command line, and the shell does not echo them.
