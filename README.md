@@ -1,13 +1,27 @@
+> # ⚠️ 本项目已废弃（DEPRECATED / ARCHIVED）
+>
+> **LiteDoc（本仓库 `SuperMarkdownReader`）已停止开发**：不再接受新功能、修复或发布，也从未发布
+> 过正式签名版本。后续工作已迁移到新仓库 👉 **[xstrsx/MarkView](https://github.com/xstrsx/MarkView)**
+>
+> 请前往新仓库获取源码、说明与构建产物：<https://github.com/xstrsx/MarkView>
+>
+> 本仓库仅作为历史归档保留：源码、工作流与文档都不再维护（Actions 配置保留为历史记录，
+> 但不再用于发布），以下所有内容仅用于追溯当时的实现与决策，请勿据此进行新的开发。
+>
+> ---
+>
 # LiteDoc — 离线优先的 Android 本地文档查看器
 
 LiteDoc 用系统 WebView 打开**本地** Markdown、SVG、Mermaid、CSV/TSV、SMILES、静态 HTML
 和文本/源码文件。它没有主页、没有桌面启动图标，也不会把网页当成文档来浏览：
 只能通过系统的“打开方式”“分享”“多文件分享”进入阅读界面。
 
-> **状态说明**：本仓库包含完整源码、云端构建工作流与验证用样例。
-> 构建产物（正式签名 APK）由 GitHub Actions 生成，**安装与运行验证由用户手动完成**；
-> 在用户反馈之前，仓库中的功能项一律标注为“待用户验证”，构建成功不等于功能已验证。
-> 详见 [docs/manual-verification.md](docs/manual-verification.md)。
+> **归档状态**：本仓库的源码与工作流曾在 Actions 上验证通过（无签名 Release 构建 5.89 MiB、
+> 单元测试与静态校验全绿），但**从未产出或发布正式签名 APK**，`release-signing` 环境至今未配置密钥。
+> 因此当初标注为“待用户验证”的功能项都**没有**在设备上验证过，也不会在本仓库继续验证。
+> 后续开发与验证请前往 [xstrsx/MarkView](https://github.com/xstrsx/MarkView)；
+> 历史说明见 [docs/manual-verification.md](docs/manual-verification.md) 与
+> [docs/code-check-report.md](docs/code-check-report.md)。
 
 ## 特性概览
 
